@@ -1,15 +1,26 @@
 import React from 'react';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
 import FibonacciGenerator from './FibonacciGenerator';
-import './App.css';
+import FibonacciHistory from './FibonacciHistory';
+import fibonacciReducer from './fibonacciSlice';
+import { CssBaseline, Container } from '@mui/material';
+
+const store = configureStore({
+  reducer: {
+    fibonacci: fibonacciReducer,
+  },
+});
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Aplicación Generadora de Fibonacci</h1>
+    <Provider store={store}>
+      <CssBaseline />
+      <Container>
         <FibonacciGenerator />
-      </header>
-    </div>
+        <FibonacciHistory />
+      </Container>
+    </Provider>
   );
 }
 

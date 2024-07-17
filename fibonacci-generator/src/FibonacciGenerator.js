@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { Button, TextField, Typography, Paper, Grid, IconButton, CircularProgress } from '@mui/material';
+import InfoIcon from '@mui/icons-material/Info';
+import { generateFibonacci, addToHistory } from './fibonacciSlice';
 
 function FibonacciGenerator() {
-  const [fibonacciSeries, setFibonacciSeries] = useState([]);
   const [currentTime, setCurrentTime] = useState('');
   const [customTime, setCustomTime] = useState('');
-  const [seeds, setSeeds] = useState({ X: 0, Y: 0 });
-  const [numberCount, setNumberCount] = useState(0);
-  const [generationTime, setGenerationTime] = useState('');
   const [showInfo, setShowInfo] = useState(false);
+  
+  const dispatch = useDispatch();
+  const { fibonacciSeries, seeds, numberCount, generationTime, status, error } = useSelector(state => state.fibonacci);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -18,69 +21,81 @@ function FibonacciGenerator() {
     return () => clearInterval(timer);
   }, []);
 
-  const generateFibonacci = (hours, minutes, seconds) => {
-    const X = Math.floor(minutes / 10);
-    const Y = minutes % 10;
-    setSeeds({ X, Y });
-    setNumberCount(seconds);
-    setGenerationTime(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-
-    let series = [Y, X];
-    for (let i = 2; i < seconds + 2; i++) {
-      series.push(series[i-1] + series[i-2]);
-    }
-
-    setFibonacciSeries(series.reverse());
-  };
-
   const handleCustomTimeSubmit = (e) => {
     e.preventDefault();
     const [hours, minutes, seconds] = customTime.split(':').map(Number);
-    generateFibonacci(hours, minutes, seconds);
+    dispatch(generateFibonacci({ hours, minutes, seconds }));
   };
 
   const handleCurrentTimeGenerate = () => {
     const now = new Date();
-    generateFibonacci(now.getHours(), now.getMinutes(), now.getSeconds());
+    dispatch(generateFibonacci({ 
+      hours: now.getHours(), 
+      minutes: now.getMinutes(), 
+      seconds: now.getSeconds() 
+    }));
   };
 
+  useEffect(() => {
+    if (status === 'succeeded' && fibonacciSeries.length > 0) {
+      dispatch(addToHistory({ time: generationTime, series: fibonacciSeries }));
+    }
+  }, [status, fibonacciSeries, generationTime, dispatch]);
+
   return (
-    <div>
-      <h2>Generador de Fibonacci</h2>
-      <p>Hora actual: {currentTime}</p>
+    <Paper elevation={3} style={{ padding: '20px', maxWidth: '600px', margin: 'auto' }}>
+      <Typography variant="h4" gutterBottom>
+        Generador de Fibonacci
+        <IconButton onClick={() => setShowInfo(!showInfo)} size="small">
+          <InfoIcon />
+        </IconButton>
+      </Typography>
       
-      <form onSubmit={handleCustomTimeSubmit}>
-        <input 
-          type="time" 
-          step="1"
-          value={customTime} 
-          onChange={(e) => setCustomTime(e.target.value)}
-          required
-        />
-        <button type="submit">Generar con hora personalizada</button>
+      {showInfo && (
+        <Typography variant="body2" paragraph>
+          La serie Fibonacci se genera utilizando los minutos como semillas (X = decenas de minutos, Y = unidades de minutos) 
+          y los segundos como la cantidad de números a producir. La serie se muestra en orden descendente.
+        </Typography>
+      )}
+
+      <Typography variant="h6">Hora actual: {currentTime}</Typography>
+      <Button variant="contained" color="primary" onClick={handleCurrentTimeGenerate} style={{ marginTop: '10px' }}>
+        Generar con hora actual
+      </Button>
+
+      <form onSubmit={handleCustomTimeSubmit} style={{ marginTop: '20px' }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item>
+            <TextField
+              type="time"
+              inputProps={{ step: 1 }}
+              value={customTime}
+              onChange={(e) => setCustomTime(e.target.value)}
+              required
+              label="Hora personalizada"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          <Grid item>
+            <Button type="submit" variant="contained" color="secondary">
+              Generar con hora personalizada
+            </Button>
+          </Grid>
+        </Grid>
       </form>
 
-      <button onClick={handleCurrentTimeGenerate}>Generar con hora actual</button>
-
-      {fibonacciSeries.length > 0 && (
-        <div>
-          <h3>Resultados:</h3>
-          <p>Hora de generación: {generationTime}</p>
-          <p>Semillas: X = {seeds.X}, Y = {seeds.Y}</p>
-          <p>Números producidos: {numberCount}</p>
-          <p>Serie Fibonacci: {fibonacciSeries.join(', ')}</p>
-          <button onClick={() => setShowInfo(!showInfo)}>
-            {showInfo ? 'Ocultar información' : 'Mostrar información'}
-          </button>
-          {showInfo && (
-            <p>
-              La serie Fibonacci se genera utilizando los minutos como semillas (X = decenas de minutos, Y = unidades de minutos) 
-              y los segundos como la cantidad de números a producir. La serie se muestra en orden descendente.
-            </p>
-          )}
+      {status === 'loading' && <CircularProgress />}
+      {status === 'failed' && <Typography color="error">{error}</Typography>}
+      {status === 'succeeded' && fibonacciSeries.length > 0 && (
+        <div style={{ marginTop: '20px' }}>
+          <Typography variant="h6">Resultados:</Typography>
+          <Typography>Hora de generación: {generationTime}</Typography>
+          <Typography>Semillas: X = {seeds.X}, Y = {seeds.Y}</Typography>
+          <Typography>Números producidos: {numberCount}</Typography>
+          <Typography>Serie Fibonacci: {fibonacciSeries.join(', ')}</Typography>
         </div>
       )}
-    </div>
+    </Paper>
   );
 }
 
